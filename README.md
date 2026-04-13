@@ -9,3 +9,10 @@ Servidor Multicliente: Gestión de múltiples víctimas simultáneas usando Pyth
 Post-Explotación: Keylogger de bajo nivel integrado con exfiltración de datos mediante comando dump.
 
 Evasión Visual: Compilación en modo ventana oculta (-mwindows).
+
+🛠️ Tecnologías
+Lenguajes: C++, Python.
+
+Networking: WinSock2, Sockets TCP.
+
+OS: Windows (Agente), Kali Linux (Servidor).
