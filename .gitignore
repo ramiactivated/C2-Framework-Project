@@ -1,0 +1,4 @@
+agent/*.exe
+agent/*.o
+__pycache__/
+*.log
