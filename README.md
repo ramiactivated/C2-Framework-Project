@@ -1,7 +1,7 @@
 # <p align="center">⚡ G3-FLASH | Advanced C2 Framework ⚡</p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-1.2.0-00ff41?style=for-the-badge&logo=target" />
+  <img src="https://img.shields.io/badge/Version-2.0.0-00ff41?style=for-the-badge&logo=target" />
   <img src="https://img.shields.io/badge/C%2B%2B-Implante-blue?style=for-the-badge&logo=c%2B%2B" />
   <img src="https://img.shields.io/badge/Python-C2%20Server-yellow?style=for-the-badge&logo=python" />
   <img src="https://img.shields.io/badge/License-MIT-red?style=for-the-badge" />
@@ -11,63 +11,54 @@
 
 ## 📸 Visual Proof (Demo)
 
-### 🖥️ Main Dashboard
+### 🖥️ Tactical Dashboard & System Tools
 <p align="center">
-  <img src="assets/dashboard.png" width="85%" style="border-radius: 10px;" />
-  <br><em>Interfaz principal con gestión de agentes en tiempo real.</em>
+  <img src="dashboard.png" width="85%" style="border-radius: 10px; border: 1px solid #00ff41;" />
+  <br><em>Panel actualizado con sistema de pestañas y módulo de gestión de procesos.</em>
 </p>
 
-### 👁️ Live Surveillance (Screenshot Module)
+### 👁️ Live Surveillance & Exfiltration
 <p align="center">
-  <img src="assets/screen_view.png" width="85%" style="border-radius: 10px;" />
-  <br><em>Visor de capturas de pantalla integrando bypass de caché del navegador.</em>
-</p>
-
-### ⌨️ Keylogger Data Exfiltration
-<p align="center">
-  <img src="assets/dump_view.png" width="85%" style="border-radius: 10px;" />
-  <br><em>Resultado del comando 'dump' mostrando la recuperación de pulsaciones.</em>
+  <img src="screen_view.png" width="85%" style="border-radius: 10px;" />
+  <br><em>Visor de capturas de pantalla y dump de keylogger integrado.</em>
 </p>
 
 ---
 
 ## 📖 Descripción
-**G3-FLASH** es una plataforma de Comando y Control (C2) de grado de investigación diseñada para demostrar la interacción compleja entre implantes de bajo nivel y servidores de control modernos.
+**G3-FLASH** es una plataforma de Comando y Control (C2) de grado de investigación. Diseñada para demostrar la interacción compleja entre implantes de bajo nivel (WinAPI) y servidores de control modernos, permitiendo una administración total del host remoto.
 
 ---
 
 ## 🛠️ Arquitectura Técnica
 
 ### 🛡️ Agente (Implante C++ Native)
-* **📸 Vigilancia por GDI+:** Captura de pantalla en tiempo real con sistema de bloqueo de ámbito.
-* **⌨️ Keylogger Multihilo:** Basado en `SetWindowsHookEx` para captura asíncrona.
-* **📂 Motor de Exfiltración:** Transmisión de archivos mediante buffers dinámicos de `std::vector`.
+* **⚙️ System Tools Module:** Uso de `tlhelp32.h` para enumeración de procesos (`CreateToolhelp32Snapshot`) y terminación forzosa de tareas (`TerminateProcess`).
+* **📸 Vigilancia GDI+:** Captura de pantalla en tiempo real con limpieza automática de buffers.
+* **⌨️ Keylogger Multihilo:** Captura asíncrona basada en hooks globales de Windows.
+* **📂 Transmisión de Archivos:** Gestión de sockets TCP para el envío de datos binarios fragmentados.
 
 ### 💻 Panel de Control (Python/Flask)
-* **🔗 Sincronización de Sockets:** Lógica avanzada para manejar fragmentación de paquetes TCP.
-* **📟 Dashboard Cyberpunk:** UI responsiva con Bootstrap 5 y estética Dark Terminal.
+* **📑 Tabbed Interface:** Navegación dinámica entre gestión de agentes y herramientas de sistema.
+* **🔗 Socket Sync:** Manejo de concurrencia y limpieza de datos para visualización en tiempo real.
+* **📟 Estética Cyberpunk:** UI responsiva optimizada para operaciones rápidas.
+
+---
+
+## 🕹️ Comandos Disponibles
+
+| Comando | Acción | Descripción |
+| :--- | :--- | :--- |
+| `ps` | **System** | Lista todos los procesos (PID y Nombre). |
+| `kill [PID]` | **System** | Termina un proceso específico. |
+| `screenshot` | **Surv** | Captura y descarga la pantalla actual. |
+| `dump` | **Surv** | Descarga el registro de teclas acumulado. |
+| `ls / cd / ...` | **Shell** | Ejecución de comandos directos en la CMD. |
 
 ---
 
 ## 🚀 Guía de Despliegue
 
-### 1. Compilación del Implante (Windows/MinGW)
-\`\`\`bash
+### 1. Compilación del Implante (Windows)
+```bash
 g++ main.cpp -o agente.exe -lws2_32 -ladvapi32 -lgdiplus -lgdi32 -mwindows -static -pthread
-\`\`\`
-
-### 2. Inicio del Servidor (Kali Linux)
-\`\`\`bash
-pip install flask
-python3 web_server.py
-\`\`\`
-
----
-
-## ⚠️ Propósitos Educativos (Disclaimer)
-Este software ha sido desarrollado con el único propósito de **educar** en ciberseguridad. El uso de esta herramienta en redes ajenas es **ilegal**.
-
----
-<p align="center">
-  <b>Desarrollado por ramiactivated | 2026</b>
-</p>
